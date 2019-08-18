@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		9B3D9D582308DBEB0091BA83 /* SpotCache.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B3D9D4E2308DBEB0091BA83 /* SpotCache.framework */; };
-		9B3D9D5D2308DBEB0091BA83 /* SpotCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3D9D5C2308DBEB0091BA83 /* SpotCacheTests.swift */; };
 		9B3D9D5F2308DBEB0091BA83 /* SpotCache.h in Headers */ = {isa = PBXBuildFile; fileRef = 9B3D9D512308DBEB0091BA83 /* SpotCache.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		9B3D9D702308DC030091BA83 /* CacheOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3D9D6B2308DC030091BA83 /* CacheOption.swift */; };
 		9B3D9D712308DC030091BA83 /* Cache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3D9D6C2308DC030091BA83 /* Cache.swift */; };
@@ -17,6 +16,7 @@
 		9B3D9D782308DC870091BA83 /* Spot in Frameworks */ = {isa = PBXBuildFile; productRef = 9B3D9D772308DC870091BA83 /* Spot */; };
 		9B3D9D7A2308DCF00091BA83 /* DataConvertable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3D9D792308DCF00091BA83 /* DataConvertable.swift */; };
 		9B3D9D7C2308DED70091BA83 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3D9D7B2308DED70091BA83 /* Extensions.swift */; };
+		9B3D9E15230942FE0091BA83 /* SpotCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3D9E14230942FE0091BA83 /* SpotCacheTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,7 +34,6 @@
 		9B3D9D512308DBEB0091BA83 /* SpotCache.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SpotCache.h; sourceTree = "<group>"; };
 		9B3D9D522308DBEB0091BA83 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9B3D9D572308DBEB0091BA83 /* SpotCacheTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpotCacheTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		9B3D9D5C2308DBEB0091BA83 /* SpotCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotCacheTests.swift; sourceTree = "<group>"; };
 		9B3D9D5E2308DBEB0091BA83 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9B3D9D6B2308DC030091BA83 /* CacheOption.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CacheOption.swift; sourceTree = "<group>"; };
 		9B3D9D6C2308DC030091BA83 /* Cache.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Cache.swift; sourceTree = "<group>"; };
@@ -44,6 +43,7 @@
 		9B3D9D752308DC0A0091BA83 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		9B3D9D792308DCF00091BA83 /* DataConvertable.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DataConvertable.swift; sourceTree = "<group>"; };
 		9B3D9D7B2308DED70091BA83 /* Extensions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
+		9B3D9E14230942FE0091BA83 /* SpotCacheTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SpotCacheTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,7 +99,6 @@
 		9B3D9D5B2308DBEB0091BA83 /* SpotCacheTests */ = {
 			isa = PBXGroup;
 			children = (
-				9B3D9D5C2308DBEB0091BA83 /* SpotCacheTests.swift */,
 				9B3D9D5E2308DBEB0091BA83 /* Info.plist */,
 			);
 			path = SpotCacheTests;
@@ -109,6 +108,7 @@
 			isa = PBXGroup;
 			children = (
 				9B3D9D692308DC030091BA83 /* SpotCache */,
+				9B3D9E13230942FE0091BA83 /* SpotCacheTests */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -124,6 +124,14 @@
 				9B3D9D6D2308DC030091BA83 /* SpotCache.swift */,
 			);
 			path = SpotCache;
+			sourceTree = "<group>";
+		};
+		9B3D9E13230942FE0091BA83 /* SpotCacheTests */ = {
+			isa = PBXGroup;
+			children = (
+				9B3D9E14230942FE0091BA83 /* SpotCacheTests.swift */,
+			);
+			path = SpotCacheTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -243,6 +251,7 @@
 			files = (
 				9B3D9D722308DC030091BA83 /* SpotCache.swift in Sources */,
 				9B3D9D7C2308DED70091BA83 /* Extensions.swift in Sources */,
+				9B3D9E15230942FE0091BA83 /* SpotCacheTests.swift in Sources */,
 				9B3D9D7A2308DCF00091BA83 /* DataConvertable.swift in Sources */,
 				9B3D9D712308DC030091BA83 /* Cache.swift in Sources */,
 				9B3D9D702308DC030091BA83 /* CacheOption.swift in Sources */,
@@ -254,7 +263,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9B3D9D5D2308DBEB0091BA83 /* SpotCacheTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -510,8 +518,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/shawnclovie/Spot";
 			requirement = {
-				branch = master;
-				kind = branch;
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
