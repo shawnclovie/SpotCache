@@ -15,6 +15,6 @@ let package = Package(
 	targets: [
 		.target(
 			name: "SpotCache",
-			dependencies: []),
+			dependencies: ["Spot"]),
 	]
 )
