@@ -7,7 +7,16 @@
 //
 
 import XCTest
+import Spot
 @testable import SpotCache
+
+struct RequestModifier: CacheURLRequestModifier {
+	func modified(request: URLRequest) -> URLRequest {
+		var new = request
+		new.allHTTPHeaderFields = ["User-Agent": "Mozilla/5.0 (\(Version.deviceModelName); \(Version.systemString))"]
+		return new
+	}
+}
 
 class SpotCacheTests: XCTestCase {
 
@@ -20,12 +29,13 @@ class SpotCacheTests: XCTestCase {
     func testCache() {
 		var expections: [XCTestExpectation] = []
 		let cacheURLs = [
-			URL(string: "https://media.riffsy.com/images/5ce76a640011902a79b484da92b0d7db/raw")!,
-			URL(string: "https://media.riffsy.com/images/cec933defd3ff8c1590c5a0bc380540c/raw")!,
-			]
+			"http://img0.imgtn.bdimg.com/it/u=3616026612,3005758900&fm=26&gp=0.jpg",
+			"https://media.riffsy.com/images/5ce76a640011902a79b484da92b0d7db/raw",
+			].map{URL(string: $0)!}
 		for url in cacheURLs {
 			let exp = XCTestExpectation()
-			Cache<UIImage>.shared.fetch(url, options: [.backgroundDecode], progress: { (progress) in
+			try? FileManager.default.removeItem(at: Cache<UIImage>.shared.cachePath(for: url))
+			Cache<UIImage>.shared.fetch(url, options: [.backgroundDecode, .requestModifier(RequestModifier())], progress: { (progress) in
 				print("\(url) progress \(Int(progress.percentage*100))%")
 			}, completion: { (result) in
 				print("\(url) complete \(result)")

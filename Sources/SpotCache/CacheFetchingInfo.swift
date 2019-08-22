@@ -10,37 +10,39 @@ import Foundation
 import Spot
 
 struct CacheFetchingInfo<T: DataConvertable> {
-	var task: URLTask?
-	var options: [CacheOption] = []
-	var progresses: [(URLTask.Progress)->Void] = []
-	var completions: [(AttributedResult<T>)->Void] = []
 	
-	mutating func add(_ options: [CacheOption], progress: ((URLTask.Progress)->Void)?, completion: ((AttributedResult<T>)->Void)?) {
-		self.options.append(contentsOf: options)
-		if let fn = progress {
-			progresses.append(fn)
-		}
-		if let fn = completion {
-			completions.append(fn)
-		}
+	struct DispatchInfo {
+		var options: CacheOptionInfo
+		var progression: ((URLTask.Progress)->Void)?
+		var completion: ((AttributedResult<T>)->Void)?
 	}
 	
+	var task: URLTask?
+	var dispatches: [DispatchInfo] = []
+	
 	func progressing(_ progress: URLTask.Progress) {
-		guard !progresses.isEmpty else {
+		guard !dispatches.isEmpty else {
 			return
 		}
-		for fn in progresses {
-			fn(progress)
+		for it in dispatches {
+			guard let fn = it.progression else {continue}
+			if let queue = it.options.callbackQueue {
+				queue.spot.async(progress, fn)
+			} else {
+				fn(progress)
+			}
 		}
 	}
 	
 	func completed(_ result: AttributedResult<T>) {
-		guard !completions.isEmpty else {
+		guard !dispatches.isEmpty else {
 			return
 		}
-		let fns = completions
-		options.callbackQueue.async {
-			for fn in fns {
+		for it in dispatches {
+			guard let fn = it.completion else {continue}
+			if let queue = it.options.callbackQueue {
+				queue.spot.async(result, fn)
+			} else {
 				fn(result)
 			}
 		}

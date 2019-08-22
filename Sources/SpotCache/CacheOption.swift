@@ -8,6 +8,11 @@
 
 import Foundation
 import CoreGraphics
+import Spot
+
+public protocol CacheURLRequestModifier {
+	func modified(request: URLRequest) -> URLRequest
+}
 
 public enum CacheOption {
 	case cacheTargets([CacheTarget])
@@ -15,63 +20,30 @@ public enum CacheOption {
 	case forceRefresh
 	case backgroundDecode
 	case scaleFactor(CGFloat)
-	case callbackQueue(DispatchQueue?)
+	case callbackQueue(DispatchQueue)
+	case requestModifier(CacheURLRequestModifier)
 }
 
-public func ==(lhs: CacheOption, rhs: CacheOption) -> Bool {
-	switch (lhs, rhs) {
-	case (.cacheTargets(_), .cacheTargets(_)):			fallthrough
-	case (.downloadPriority(_), .downloadPriority(_)):	fallthrough
-	case (.forceRefresh, .forceRefresh):				fallthrough
-	case (.backgroundDecode, .backgroundDecode):		fallthrough
-	case (.scaleFactor(_), .scaleFactor(_)):			fallthrough
-	case (.callbackQueue(_), .callbackQueue(_)):		return true
-	default:return false
-	}
-}
-
-extension Collection where Iterator.Element == CacheOption {
-	func findOption(_ target: Iterator.Element) -> Iterator.Element? {
-		firstIndex {$0 == target}.flatMap {self[$0]}
-	}
+struct CacheOptionInfo {
+	var cacheTargets: [CacheTarget] = []
+	var downloadPriority: Float = URLSessionTask.defaultPriority
+	var forceRefresh = false
+	var backgroundDecode = false
+	var scaleFactor: CGFloat = 1
+	var callbackQueue: DispatchQueue?
+	var requestModifier: CacheURLRequestModifier?
 	
-	public var cacheTargets: [CacheTarget] {
-		if let item = findOption(.cacheTargets([])),
-			case .cacheTargets(let tar) = item {
-			return tar
+	init(_ opts: [CacheOption]) {
+		for opt in opts {
+			switch opt {
+			case .cacheTargets(let it):		cacheTargets = it
+			case .downloadPriority(let it):	downloadPriority = it
+			case .forceRefresh:				forceRefresh = true
+			case .backgroundDecode:			backgroundDecode = true
+			case .scaleFactor(let it):		scaleFactor = it
+			case .callbackQueue(let it):	callbackQueue = it
+			case .requestModifier(let it):	requestModifier = it
+			}
 		}
-		return [.disk, .memory]
-	}
-	
-	public var downloadPriority: Float {
-		if let item = findOption(.downloadPriority(0)),
-			case .downloadPriority(let priority) = item {
-			return priority
-		}
-		return URLSessionTask.defaultPriority
-	}
-	
-	public var forceRefresh: Bool {
-		contains {$0 == .forceRefresh}
-	}
-	
-	public var backgroundDecode: Bool {
-		contains {$0 == .backgroundDecode}
-	}
-	
-	public var scaleFactor: CGFloat {
-		if let item = findOption(.scaleFactor(0)),
-			case .scaleFactor(let scale) = item {
-			return scale
-		}
-		return 1
-	}
-	
-	var callbackQueue: DispatchQueue {
-		if let item = findOption(.callbackQueue(nil)),
-			case .callbackQueue(let queue) = item {
-			return queue ?? DispatchQueue.main
-		}
-		return DispatchQueue.main
 	}
 }

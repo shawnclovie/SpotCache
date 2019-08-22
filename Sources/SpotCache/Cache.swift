@@ -344,6 +344,7 @@ extension Cache {
 	                  progress: ((URLTask.Progress)->Void)? = nil,
 	                  completion: ((AttributedResult<T>)->Void)? = nil) {
 		let key = url.spot.cacheKey
+		let optInfo = CacheOptionInfo(options)
 		let fnRetrived = { (result: AttributedResult<T>) in
 			if case .success(_) = result {
 				completion?(result)
@@ -353,26 +354,29 @@ extension Cache {
 			if progress != nil || completion != nil {
 				self.fetchingInfos.waitAndSet {
 					if download {
-						$0[url] = CacheFetchingInfo()
+						$0[url] = .init()
 					}
-					$0[url]?.add(options, progress: progress, completion: completion)
+					$0[url]?.dispatches.append(.init(options: optInfo, progression: progress, completion: completion))
 				}
 			}
 			if download {
-				self.fetching(url, key, options)
+				self.fetching(url, key, optInfo)
 			}
 		}
-		if options.forceRefresh && !fetchingInfos.get().keys.contains(url) {
+		if optInfo.forceRefresh && !fetchingInfos.get().keys.contains(url) {
 			fnRetrived(.failure(AttributedError(.itemNotFound, object: url)))
 		} else {
 			retrieveItem(keyed: key, completion: fnRetrived)
 		}
 	}
 	
-	private func fetching(_ url: URL, _ key: String, _ options: [CacheOption]) {
-		let req = URLRequest.spot(.get, url)
+	private func fetching(_ url: URL, _ key: String, _ optInfo: CacheOptionInfo) {
+		var req = URLRequest.spot(.get, url)
+		if let actor = optInfo.requestModifier {
+			req = actor.modified(request: req)
+		}
 		let task: URLTask
-		if options.cacheTargets == [.memory] {
+		if optInfo.cacheTargets == [.memory] {
 			task = .init(req)
 			_ = task.completeEvent.subscribe { (task, result) in
 				switch result {
@@ -387,7 +391,7 @@ extension Cache {
 						}
 						self.fetched(url, result: result)
 					}
-					if options.backgroundDecode {
+					if optInfo.backgroundDecode {
 						cacheDecodeQueue.async(execute: fn)
 					} else {
 						fn()
@@ -437,7 +441,7 @@ extension Cache {
 		fetchingInfos.waitAndSet {
 			$0[url]?.task = task
 		}
-		task.request(priority: options.downloadPriority, progression: {
+		task.request(priority: optInfo.downloadPriority, progression: {
 			self.downloadingProgressEvent.dispatch((url, $0.percentage))
 			self.fetchingInfos.get()[url]?.progressing($0)
 		})
