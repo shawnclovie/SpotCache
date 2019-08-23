@@ -343,7 +343,6 @@ extension Cache {
 	                  options: [CacheOption] = [],
 	                  progress: ((URLTask.Progress)->Void)? = nil,
 	                  completion: ((AttributedResult<T>)->Void)? = nil) {
-		let key = url.spot.cacheKey
 		let optInfo = CacheOptionInfo(options)
 		let fnRetrived = { (result: AttributedResult<T>) in
 			if case .success(_) = result {
@@ -360,100 +359,88 @@ extension Cache {
 				}
 			}
 			if download {
-				self.fetching(url, key, optInfo)
+				self.request(url, option: optInfo)
 			}
 		}
 		if optInfo.forceRefresh && !fetchingInfos.get().keys.contains(url) {
 			fnRetrived(.failure(AttributedError(.itemNotFound, object: url)))
 		} else {
-			retrieveItem(keyed: key, completion: fnRetrived)
+			retrieveItem(keyed: url.spot.cacheKey, completion: fnRetrived)
 		}
 	}
 	
-	private func fetching(_ url: URL, _ key: String, _ optInfo: CacheOptionInfo) {
+	private func request(_ url: URL, option: CacheOptionInfo) {
 		var req = URLRequest.spot(.get, url)
-		if let actor = optInfo.requestModifier {
+		if let actor = option.requestModifier {
 			req = actor.modified(request: req)
 		}
-		let task: URLTask
-		if optInfo.cacheTargets == [.memory] {
-			task = .init(req)
-			_ = task.completeEvent.subscribe { (task, result) in
-				switch result {
-				case .success(let data):
-					let fn = {
-						let result: AttributedResult<T>
-						if let item = T.convert(from: .data(data)) as? T {
-							self.saveToMemoryCache(item, for: url)
-							result = .success(item)
-						} else {
-							result = .failure(AttributedError(.invalidFormat, object: data))
-						}
-						self.fetched(url, result: result)
-					}
-					if optInfo.backgroundDecode {
-						cacheDecodeQueue.async(execute: fn)
-					} else {
-						fn()
-					}
-				case .failure(let error):
-					self.fetched(url, result: .failure(error))
-				}
-				self.fetchingInfos.waitAndSet {
-					$0.removeValue(forKey: url)
-				}
-			}
-		} else {
-			let cacheFile = self.cacheFile(keyed: key)
-			let tempPath = cacheFile.appendingPathExtension(String(Date().timeIntervalSince1970))
-			task = .init(req, for: .download(saveAsFile: tempPath))
-			_ = task.completeEvent.subscribe { task, result in
-				switch result {
-				case .success(_):
-					let status = task.respondStatusCode ?? 404
-					let success = status < 400
+		let tempPath = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathExtension(String(Date().timeIntervalSince1970))
+		let shouldSaveFile = option.cacheTargets.contains(.disk)
+		let task = URLTask(req, for: shouldSaveFile ? .download(saveAsFile: tempPath) : .data)
+		_ = task.progressEvent.subscribe {
+			self.downloadingProgressEvent.dispatch((url, $0.percentage))
+			self.fetchingInfos.get()[url]?.progressing($0)
+		}
+		_ = task.completeEvent.subscribe { (task, result) in
+			switch result {
+			case .success(let data):
+				let status = task.respondStatusCode ?? 404
+				let success = status < 400
+				if shouldSaveFile {
+					let cacheFile = self.cacheFile(keyed: url.spot.cacheKey)
 					// Other process may downloading same file.
 					if !success || self.fileManager.fileExists(atPath: cacheFile.path) {
 						_ = try? self.fileManager.removeItem(at: tempPath)
 					} else {
 						_ = try? self.fileManager.moveItem(at: tempPath, to: cacheFile)
 					}
-					if success {
-						self.retrieveItem(keyed: key) { result in
-							self.fetched(url, result: result)
-						}
-					} else {
-						let source: AttributedError.Source
-						if status == 404 {
-							source = .itemNotFound
-						} else if status >= 500 {
-							source = .server
-						} else {
-							source = .serviceMissing
-						}
-						self.fetched(url, result: .failure(.init(source, object: url, userInfo: ["status": status, "respondData": task.respondData])))
-					}
-				case .failure(let err):
-					self.fetched(url, result: .failure(err))
 				}
+				guard success else {
+					let source: AttributedError.Source
+					switch status {
+					case 404:			source = .itemNotFound
+					case 403:			source = .privilegeLimited
+					case 500..<(.max):	source = .server
+					default:			source = .serviceMissing
+					}
+					self.requestDidFinish(url, result: .failure(.init(source, object: url, userInfo: ["status": status, "respondData": task.respondData])))
+					return
+				}
+				let fn = {
+					let result: AttributedResult<T>
+					if shouldSaveFile {
+						do {
+							result = .success(try self.retrieveInDiskCache(keyed: url.spot.cacheKey))
+						} catch {
+							result = .failure(.init(with: error, .io))
+						}
+					} else if let item = T.convert(from: .data(data)) as? T {
+						result = .success(item)
+					} else {
+						result = .failure(.init(.invalidFormat, object: data))
+					}
+					if option.cacheTargets.contains(.memory), let item = try? result.get() {
+						self.saveToMemoryCache(item, for: url)
+					}
+					self.requestDidFinish(url, result: result)
+				}
+				if option.backgroundDecode {
+					cacheDecodeQueue.async(execute: fn)
+				} else {
+					fn()
+				}
+			case .failure(let err):
+				self.requestDidFinish(url, result: .failure(err))
 			}
 		}
 		fetchingInfos.waitAndSet {
 			$0[url]?.task = task
 		}
-		task.request(priority: optInfo.downloadPriority, progression: {
-			self.downloadingProgressEvent.dispatch((url, $0.percentage))
-			self.fetchingInfos.get()[url]?.progressing($0)
-		})
+		task.request(priority: option.downloadPriority)
 	}
 	
-	private func fetched(_ url: URL, result: AttributedResult<T>) {
-		switch result {
-		case .success(let value):
-			fileDidDownloadEvent.dispatch((url, .success(value)))
-		case .failure(let error):
-			fileDidDownloadEvent.dispatch((url, .failure(error)))
-		}
+	private func requestDidFinish(_ url: URL, result: AttributedResult<T>) {
+		fileDidDownloadEvent.dispatch((url, result))
 		fetchingInfos.waitAndSet {
 			$0.removeValue(forKey: url)?.completed(result)
 		}
@@ -463,11 +450,12 @@ extension Cache {
 	/// - parameter url:            URL of task.
 	/// - parameter stopConnection: Stop url connection too.
 	public func cancelFetching(_ url: URL, stopConnection: Bool = false) {
-		if stopConnection, let info = fetchingInfos.get()[url] {
-			info.task?.cancel()
-		}
+		var info: CacheFetchingInfo<T>?
 		fetchingInfos.waitAndSet {
-			$0.removeValue(forKey: url)
+			info = $0.removeValue(forKey: url)
+		}
+		if stopConnection {
+			info?.task?.cancel()
 		}
 	}
 }

@@ -13,7 +13,7 @@ import Spot
 struct RequestModifier: CacheURLRequestModifier {
 	func modified(request: URLRequest) -> URLRequest {
 		var new = request
-		new.allHTTPHeaderFields = ["User-Agent": "Mozilla/5.0 (\(Version.deviceModelName); \(Version.systemString))"]
+		new.allHTTPHeaderFields = ["User-Agent": "Mozilla/5.0 (\(Version.deviceModelName); iOS \(Version.systemString))"]
 		return new
 	}
 }
@@ -34,12 +34,13 @@ class SpotCacheTests: XCTestCase {
 			].map{URL(string: $0)!}
 		for url in cacheURLs {
 			let exp = XCTestExpectation()
-			try? FileManager.default.removeItem(at: Cache<UIImage>.shared.cachePath(for: url))
-			Cache<UIImage>.shared.fetch(url, options: [.backgroundDecode, .requestModifier(RequestModifier())], progress: { (progress) in
-				print("\(url) progress \(Int(progress.percentage*100))%")
+			let path = Cache<UIImage>.shared.cachePath(for: url)
+			try? FileManager.default.removeItem(at: path)
+			Cache<UIImage>.shared.fetch(url, options: [.cacheTargets([.disk]), .requestModifier(RequestModifier())], progress: { (progress) in
+				print(url, "progress \(Int(progress.percentage*100))%")
 			}, completion: { (result) in
-				print("\(url) complete \(result)")
-				print((try? Cache<UIImage>.shared.retrieveItem(for: url)) as Any)
+				print(url, "complete", result)
+				print(url, (try? Cache<UIImage>.shared.retrieveItem(for: url)) as Any)
 				exp.fulfill()
 			})
 			expections.append(exp)
