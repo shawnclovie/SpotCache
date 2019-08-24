@@ -331,7 +331,7 @@ extension Cache {
 	}
 	
 	public func isFetchingURL(_ url: URL) -> Bool {
-		return fetchingInfos.get()[url] != nil
+		return fetchingInfos.waitAndGet()[url] != nil
 	}
 	
 	/// Fetch (download) data from url.
@@ -349,7 +349,7 @@ extension Cache {
 				completion?(result)
 				return
 			}
-			let download = self.fetchingInfos.get()[url] == nil
+			let download = self.fetchingInfos.waitAndGet()[url] == nil
 			if progress != nil || completion != nil {
 				self.fetchingInfos.waitAndSet {
 					if download {
@@ -362,7 +362,7 @@ extension Cache {
 				self.request(url, option: optInfo)
 			}
 		}
-		if optInfo.forceRefresh && !fetchingInfos.get().keys.contains(url) {
+		if optInfo.forceRefresh && !fetchingInfos.waitAndGet().keys.contains(url) {
 			fnRetrived(.failure(AttributedError(.itemNotFound, object: url)))
 		} else {
 			retrieveItem(keyed: url.spot.cacheKey, completion: fnRetrived)
@@ -379,7 +379,7 @@ extension Cache {
 		let task = URLTask(req, for: shouldSaveFile ? .download(saveAsFile: tempPath) : .data)
 		_ = task.progressEvent.subscribe {
 			self.downloadingProgressEvent.dispatch((url, $0.percentage))
-			self.fetchingInfos.get()[url]?.progressing($0)
+			self.fetchingInfos.waitAndGet()[url]?.progressing($0)
 		}
 		_ = task.completeEvent.subscribe { (task, result) in
 			switch result {
