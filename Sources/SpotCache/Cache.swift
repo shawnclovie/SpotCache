@@ -296,7 +296,7 @@ extension Cache {
 		if !fileManager.fileExists(atPath: file.path) {
 			throw AttributedError(.fileNotFound, object: key, userInfo: ["file": file])
 		}
-		if let value = T.convert(from: .url(file)) as? T {
+		if let value = T.convert(from: .path(file)) as? T {
 			return value
 		}
 		throw AttributedError(.invalidFormat, object: key, userInfo: ["file": file])

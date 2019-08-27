@@ -28,12 +28,7 @@ extension Data: DataConvertable {
 	public typealias ItemType = Data
 	
 	public static func convert(from source: Data.Source) -> Data? {
-		switch source {
-		case .data(let data):
-			return data
-		case .url(let url):
-			return try? Data(contentsOf: url)
-		}
+		source.data
 	}
 	
 	public func convertToData() -> Data? {
@@ -43,10 +38,7 @@ extension Data: DataConvertable {
 
 extension URL: DataConvertable {
 	public static func convert(from source: Data.Source) -> URL? {
-		guard let file = source.url else {
-			return nil
-		}
-		return file
+		source.path
 	}
 	
 	public func convertToData() -> Data? {
