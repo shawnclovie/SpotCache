@@ -29,6 +29,7 @@ class SpotCacheTests: XCTestCase {
     func testCache() {
 		var expections: [XCTestExpectation] = []
 		let cacheURLs = [
+			"http://image.biaobaiju.com/uploads/20180802/03/1533150157-csMjhVNgZS.png",
 			"http://img0.imgtn.bdimg.com/it/u=3616026612,3005758900&fm=26&gp=0.jpg",
 			"https://media.riffsy.com/images/5ce76a640011902a79b484da92b0d7db/raw",
 			].map{URL(string: $0)!}

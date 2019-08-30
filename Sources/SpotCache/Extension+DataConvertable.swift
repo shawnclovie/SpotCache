@@ -1,6 +1,6 @@
 //
-//  Foundation+Cache.swift
-//  Spot
+//  Extension+DataConvertable.swift
+//  SpotCache
 //
 //  Created by Shawn Clovie on 20/02/2017.
 //  Copyright © 2017 Shawn Clovie. All rights reserved.
@@ -12,21 +12,7 @@ import Spot
 import UIKit
 #endif
 
-extension Suffix where Base == URL {
-	var cacheKey: String {
-		base.absoluteString.spot.md5
-	}
-}
-
-extension Dictionary {
-	func sortedKeysByValue(by order: (Value, Value) -> Bool) -> [Key] {
-		Array(self).sorted {order($0.1, $1.1)}.map {$0.0}
-	}
-}
-
 extension Data: DataConvertable {
-	public typealias ItemType = Data
-	
 	public static func convert(from source: Data.Source) -> Data? {
 		source.data
 	}

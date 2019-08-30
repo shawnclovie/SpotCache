@@ -17,10 +17,6 @@ private let cacheMaxPeriodInSecond: TimeInterval = 86400 * 7
 
 private let cacheDecodeQueue = DispatchQueue(label: "cache.decode", attributes: .concurrent)
 
-public enum CacheTarget {
-	case memory, disk
-}
-
 private var sharedCaches = SynchronizableValue([String: AnyObject]())
 
 public final class Cache<T: DataConvertable> {
@@ -31,7 +27,7 @@ public final class Cache<T: DataConvertable> {
 		if let exist = sharedCaches.get()[name] as? Cache<T> {
 			inst = exist
 		} else {
-			inst = Cache<T>(name: "default_" + name)
+			inst = Cache<T>(name: "__shared")
 			inst.maxMemoryCost = 1024000
 			sharedCaches.waitAndSet {
 				$0[name] = inst
@@ -67,8 +63,12 @@ public final class Cache<T: DataConvertable> {
 	
 	private let notificationObserver = NotificationObserver()
 	
+	private let logger: Logger
+	
 	public init(name: String, path: URL? = nil, cacheFileExtension: String = "") {
-		let cacheName = "\(DNSPrefix).\(name)"
+		logger = .init(tag: "\(type(of: self)).\(name)", for: .spotcache)
+		
+		let cacheName = "SpotCache.\(T.self).\(name)"
 		memoryCache.name = cacheName
 		
 		let dstPath = path ?? .spot_cachesPath
@@ -121,12 +121,16 @@ public final class Cache<T: DataConvertable> {
 		ioQueue.async {
 			var (deletingURLs, diskCacheSize, cachedFiles) = self.travelCachedFiles(onlyForCacheSize: false)
 			for fileURL in deletingURLs {
-				try? self.fileManager.removeItem(at: fileURL)
+				do {
+					try self.fileManager.removeItem(at: fileURL)
+				} catch {
+					self.logger.log(.error, messages: ["cleanExpiredDiskCache", error])
+				}
 			}
 			if self.maxDiskCacheSize > 0 && diskCacheSize > self.maxDiskCacheSize {
 				let targetSize = self.maxDiskCacheSize / 2
 				// Sort files by last modify date. We want to clean from the oldest files.
-				let sortedFiles = cachedFiles.sortedKeysByValue { (res1, res2) in
+				let sortedFiles = cachedFiles.spot_sortedKeysByValue { (res1, res2) in
 					guard let date1 = res1.contentModificationDate,
 						let date2 = res2.contentModificationDate else {
 							// Not valid date information. This should not happen. Just in case.
@@ -135,7 +139,11 @@ public final class Cache<T: DataConvertable> {
 					return date1.compare(date2) == .orderedAscending
 				}
 				for fileURL in sortedFiles {
-					try? self.fileManager.removeItem(at: fileURL)
+					do {
+						try self.fileManager.removeItem(at: fileURL)
+					} catch {
+						self.logger.log(.error, messages: ["cleanExpiredDiskCache", error])
+					}
 					deletingURLs.append(fileURL)
 					if let fileSize = cachedFiles[fileURL]?.totalFileAllocatedSize {
 						diskCacheSize -= UInt(fileSize)
@@ -200,7 +208,7 @@ public final class Cache<T: DataConvertable> {
 extension Cache {
 	
 	public func saveToMemoryCache(_ item: T, for url: URL) {
-		memoryCache.setObject(item as AnyObject, forKey: url.spot.cacheKey as NSString)
+		memoryCache.setObject(item as AnyObject, forKey: url.spot_cacheKey as NSString)
 	}
 	
 	public func saveToDisk(_ data: Data, downloadFrom url: URL, completion: ((Bool)->Void)?) {
@@ -224,7 +232,7 @@ extension Cache {
 	public func removeItem(downloadFrom url: URL,
 	                       fromDisk: Bool = true,
 	                       completion: ((Error?)->Void)? = nil) {
-		let key = url.spot.cacheKey
+		let key = url.spot_cacheKey
 		memoryCache.removeObject(forKey: key as NSString)
 		if fromDisk {
 			ioQueue.async {
@@ -249,11 +257,11 @@ extension Cache {
 extension Cache {
 	
 	public func retrieveItem(for url: URL, completion: @escaping (AttributedResult<T>)->Void) {
-		retrieveItem(keyed: url.spot.cacheKey, completion: completion)
+		retrieveItem(keyed: url.spot_cacheKey, completion: completion)
 	}
 	
 	public func retrieveItem(for url: URL) throws -> T {
-		let key = url.spot.cacheKey
+		let key = url.spot_cacheKey
 		if let item = retrieveInMemoryCache(keyed: key) {
 			return item
 		}
@@ -261,7 +269,7 @@ extension Cache {
 	}
 	
 	public func retrieveItemInMemoryCache(for url: URL) -> T? {
-		retrieveInMemoryCache(keyed: url.spot.cacheKey)
+		retrieveInMemoryCache(keyed: url.spot_cacheKey)
 	}
 	
 	@discardableResult
@@ -305,13 +313,17 @@ extension Cache {
 
 extension Cache {
 	public func cachePath(for url: URL) -> URL {
-		cacheFile(keyed: url.spot.cacheKey)
+		cacheFile(keyed: url.spot_cacheKey)
 	}
 	
 	func cacheFile(keyed key: String) -> URL {
 		let dir = cacheDirectory
 		if !fileManager.fileExists(atPath: dir.path) {
-			try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+			do {
+				try fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+			} catch {
+				logger.log(.error, messages: ["makeCacheDirectory", error])
+			}
 		}
 		return dir.appendingPathComponent(key)
 			.appendingPathExtension(cacheFileExtension)
@@ -322,7 +334,7 @@ extension Cache {
 	/// Check url cache exist on disk or memory or neither..
 	/// - parameter url: URL to check
 	public func isCacheExists(for url: URL, in target: CacheTarget) -> Bool {
-		let key = url.spot.cacheKey
+		let key = url.spot_cacheKey
 		switch target {
 		case .disk:
 			let cachePath = self.cacheFile(keyed: key).path
@@ -367,7 +379,7 @@ extension Cache {
 		if optInfo.forceRefresh && !fetchingInfos.waitAndGet().keys.contains(url) {
 			fnRetrived(.failure(AttributedError(.itemNotFound, object: url)))
 		} else {
-			retrieveItem(keyed: url.spot.cacheKey, completion: fnRetrived)
+			retrieveItem(keyed: url.spot_cacheKey, completion: fnRetrived)
 		}
 	}
 	
@@ -376,12 +388,18 @@ extension Cache {
 		if let actor = option.requestModifier {
 			req = actor.modified(request: req)
 		}
-		let tempPath = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathExtension(String(Date().timeIntervalSince1970))
+		let cacheFile = self.cacheFile(keyed: url.spot_cacheKey)
+		let tempPath = cacheFile.appendingPathExtension(String(Date().timeIntervalSince1970))
 		let shouldSaveFile = option.cacheTargets.contains(.disk)
 		let task = URLTask(req, for: shouldSaveFile ? .download(saveAsFile: tempPath) : .data)
 		_ = task.progressEvent.subscribe {
 			self.downloadingProgressEvent.dispatch((url, $0.percentage))
 			self.fetchingInfos.waitAndGet()[url]?.progressing($0)
+		}
+		_ = task.downloadedEvent.subscribe { (path, error) in
+			if let err = error {
+				self.logger.log(.error, messages: ["downloaded", err])
+			}
 		}
 		_ = task.completeEvent.subscribe { (task, result) in
 			switch result {
@@ -389,12 +407,19 @@ extension Cache {
 				let status = task.respondStatusCode ?? 404
 				let success = status < 400
 				if shouldSaveFile {
-					let cacheFile = self.cacheFile(keyed: url.spot.cacheKey)
 					// Other process may downloading same file.
 					if !success || self.fileManager.fileExists(atPath: cacheFile.path) {
-						_ = try? self.fileManager.removeItem(at: tempPath)
+						do {
+							try self.fileManager.removeItem(at: tempPath)
+						} catch {
+							self.logger.log(.error, messages: ["remove temp file failed", tempPath])
+						}
 					} else {
-						_ = try? self.fileManager.moveItem(at: tempPath, to: cacheFile)
+						do {
+							try self.fileManager.moveItem(at: tempPath, to: cacheFile)
+						} catch {
+							self.logger.log(.error, messages: ["moving failed", tempPath, "->", cacheFile])
+						}
 					}
 				}
 				guard success else {
@@ -412,7 +437,7 @@ extension Cache {
 					let result: AttributedResult<T>
 					if shouldSaveFile {
 						do {
-							result = .success(try self.retrieveInDiskCache(keyed: url.spot.cacheKey))
+							result = .success(try self.retrieveInDiskCache(keyed: url.spot_cacheKey))
 						} catch {
 							result = .failure(.init(with: error, .io))
 						}
@@ -459,5 +484,17 @@ extension Cache {
 		if stopConnection {
 			info?.task?.cancel()
 		}
+	}
+}
+
+extension URL {
+	fileprivate var spot_cacheKey: String {
+		absoluteString.spot.md5
+	}
+}
+
+extension Dictionary {
+	fileprivate func spot_sortedKeysByValue(by order: (Value, Value) -> Bool) -> [Key] {
+		Array(self).sorted {order($0.1, $1.1)}.map {$0.0}
 	}
 }
