@@ -68,7 +68,7 @@ public final class Cache<T: DataConvertable> {
 	private let notificationObserver = NotificationObserver()
 	
 	public init(name: String, path: URL? = nil, cacheFileExtension: String = "") {
-		let cacheName = "\(type(of: self)).\(name)"
+		let cacheName = "\(DNSPrefix).\(name)"
 		memoryCache.name = cacheName
 		
 		let dstPath = path ?? .spot_cachesPath
@@ -321,13 +321,15 @@ extension Cache {
 extension Cache {
 	/// Check url cache exist on disk or memory or neither..
 	/// - parameter url: URL to check
-	public func cacheExist(for url: URL) -> CacheTarget? {
+	public func isCacheExists(for url: URL, in target: CacheTarget) -> Bool {
 		let key = url.spot.cacheKey
-		let cachePath = self.cacheFile(keyed: key).path
-		if fileManager.fileExists(atPath: cachePath) {
-			return .disk
+		switch target {
+		case .disk:
+			let cachePath = self.cacheFile(keyed: key).path
+			return fileManager.fileExists(atPath: cachePath)
+		case .memory:
+			return memoryCache.object(forKey: key as NSString) != nil
 		}
-		return memoryCache.object(forKey: key as NSString) == nil ? nil : .memory
 	}
 	
 	public func isFetchingURL(_ url: URL) -> Bool {
