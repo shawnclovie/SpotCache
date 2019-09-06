@@ -9,7 +9,7 @@
 import Foundation
 import Spot
 
-struct CacheFetchingInfo<T: DataConvertable> {
+final class CacheFetchingInfo<T: DataConvertable> {
 	
 	struct DispatchInfo {
 		var options: CacheOptionInfo
@@ -19,6 +19,8 @@ struct CacheFetchingInfo<T: DataConvertable> {
 	
 	var task: URLTask?
 	var dispatches: [DispatchInfo] = []
+	
+	init() {}
 	
 	func progressing(_ progress: URLTask.Progress) {
 		guard !dispatches.isEmpty else {

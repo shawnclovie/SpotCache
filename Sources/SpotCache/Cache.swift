@@ -364,16 +364,19 @@ extension Cache {
 				return
 			}
 			let download = self.fetchingInfos.waitAndGet()[url] == nil
+			var info: CacheFetchingInfo<T>?
 			if progress != nil || completion != nil {
 				self.fetchingInfos.waitAndSet {
 					if download {
-						$0[url] = .init()
+						let v = CacheFetchingInfo<T>()
+						$0[url] = v
+						info = v
 					}
 					$0[url]?.dispatches.append(.init(options: optInfo, progression: progress, completion: completion))
 				}
 			}
 			if download {
-				self.request(url, option: optInfo)
+				self.request(url, option: optInfo, info)
 			}
 		}
 		if optInfo.forceRefresh && !fetchingInfos.waitAndGet().keys.contains(url) {
@@ -383,7 +386,7 @@ extension Cache {
 		}
 	}
 	
-	private func request(_ url: URL, option: CacheOptionInfo) {
+	private func request(_ url: URL, option: CacheOptionInfo, _ info: CacheFetchingInfo<T>?) {
 		var req = URLRequest.spot(.get, url)
 		if let actor = option.requestModifier {
 			req = actor.modified(request: req)
@@ -394,7 +397,7 @@ extension Cache {
 		let task = URLTask(req, for: shouldSaveFile ? .download(saveAsFile: tempPath) : .data)
 		_ = task.progressEvent.subscribe {
 			self.downloadingProgressEvent.dispatch((url, $0.percentage))
-			self.fetchingInfos.waitAndGet()[url]?.progressing($0)
+			info?.progressing($0)
 		}
 		_ = task.downloadedEvent.subscribe { (path, error) in
 			if let err = error {
@@ -460,9 +463,7 @@ extension Cache {
 				self.requestDidFinish(url, result: .failure(err))
 			}
 		}
-		fetchingInfos.waitAndSet {
-			$0[url]?.task = task
-		}
+		info?.task = task
 		task.request(priority: option.downloadPriority)
 	}
 	
