@@ -17,7 +17,7 @@ final class CacheFetchingInfo<T: DataConvertable> {
 		var completion: ((AttributedResult<T>)->Void)?
 	}
 	
-	var task: URLTask?
+	weak var task: URLTask?
 	var dispatches: [DispatchInfo] = []
 	
 	init() {}

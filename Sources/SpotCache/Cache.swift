@@ -464,7 +464,7 @@ extension Cache {
 			}
 		}
 		info?.task = task
-		task.request(priority: option.downloadPriority)
+		task.request(with: option.connection, priority: option.downloadPriority, queue: option.callbackQueue ?? .main)
 	}
 	
 	private func requestDidFinish(_ url: URL, result: AttributedResult<T>) {

@@ -16,10 +16,10 @@ public protocol CacheURLRequestModifier {
 
 public enum CacheOption {
 	case cacheTargets([CacheTarget])
+	case connection(URLConnection)
 	case downloadPriority(Float)
 	case forceRefresh
 	case backgroundDecode
-	case scaleFactor(CGFloat)
 	case callbackQueue(DispatchQueue)
 	case requestModifier(CacheURLRequestModifier)
 }
@@ -27,9 +27,9 @@ public enum CacheOption {
 struct CacheOptionInfo {
 	var cacheTargets: [CacheTarget] = []
 	var downloadPriority: Float = URLSessionTask.defaultPriority
+	var connection: URLConnection = .default
 	var forceRefresh = false
 	var backgroundDecode = false
-	var scaleFactor: CGFloat = 1
 	var callbackQueue: DispatchQueue?
 	var requestModifier: CacheURLRequestModifier?
 	
@@ -40,7 +40,7 @@ struct CacheOptionInfo {
 			case .downloadPriority(let it):	downloadPriority = it
 			case .forceRefresh:				forceRefresh = true
 			case .backgroundDecode:			backgroundDecode = true
-			case .scaleFactor(let it):		scaleFactor = it
+			case .connection(let it):		connection = it
 			case .callbackQueue(let it):	callbackQueue = it
 			case .requestModifier(let it):	requestModifier = it
 			}
